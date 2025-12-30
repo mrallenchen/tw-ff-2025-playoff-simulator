@@ -7,41 +7,57 @@
 <style>
 body { font-family: Arial, sans-serif; padding: 20px; }
 
-button { margin-right: 8px; margin-bottom: 10px; }
+button { margin-right: 8px; margin-bottom: 12px; }
 
-.bracket {
-  display: grid;
-  grid-template-columns: 220px 220px 220px;
+.container {
+  display: flex;
   gap: 30px;
-  margin-top: 20px;
 }
 
-.round h3 { text-align: center; }
-
-.match {
-  border: 1px solid #ccc;
-  padding: 6px;
-  margin-bottom: 14px;
+.teams {
+  width: 220px;
 }
 
 .team {
-  padding: 4px;
+  padding: 6px;
+  border: 1px solid #aaa;
+  margin-bottom: 6px;
+  background: #f9f9f9;
   cursor: grab;
+}
+
+.bracket {
+  display: grid;
+  grid-template-columns: 260px 220px 220px;
+  gap: 30px;
+}
+
+.round h3 {
+  text-align: center;
+}
+
+.match {
+  border: 1px solid #ccc;
+  padding: 8px;
+  margin-bottom: 16px;
+}
+
+.slot {
+  border: 1px dashed #aaa;
+  padding: 6px;
+  margin-bottom: 6px;
+  min-height: 22px;
+}
+
+.slot strong {
+  display: block;
+  font-size: 12px;
+  color: #666;
 }
 
 .winner {
   font-weight: bold;
   color: green;
-}
-
-.seedbox {
-  border: 1px dashed #aaa;
-  padding: 6px;
-  margin-bottom: 6px;
-}
-
-.seedbox div {
-  cursor: grab;
 }
 </style>
 </head>
@@ -55,24 +71,32 @@ button { margin-right: 8px; margin-bottom: 10px; }
 <button onclick="randomSeeding()">Random Seeding</button>
 <button onclick="simulate()">Simulate</button>
 
-<h3>Seeds (drag teams between seeds)</h3>
-<div id="seeds"></div>
+<div class="container">
 
-<div class="bracket">
-  <div class="round">
-    <h3>Quarterfinals</h3>
-    <div id="qf"></div>
+  <!-- Teams -->
+  <div class="teams">
+    <h3>Teams</h3>
+    <div id="teams"></div>
   </div>
 
-  <div class="round">
-    <h3>Semifinals</h3>
-    <div id="sf"></div>
+  <!-- Bracket -->
+  <div class="bracket">
+    <div class="round">
+      <h3>Quarterfinals</h3>
+      <div id="qf"></div>
+    </div>
+
+    <div class="round">
+      <h3>Semifinals</h3>
+      <div id="sf"></div>
+    </div>
+
+    <div class="round">
+      <h3>Final</h3>
+      <div id="final"></div>
+    </div>
   </div>
 
-  <div class="round">
-    <h3>Final</h3>
-    <div id="final"></div>
-  </div>
 </div>
 
 <script>
@@ -87,7 +111,12 @@ const teams = {
   "Lambda Lambda Lambda": [97.4, 71.4, 59.2]
 };
 
-const seedOrder = [1,8,4,5,3,6,2,7];
+const seedPairs = [
+  [1,8],
+  [4,5],
+  [3,6],
+  [2,7]
+];
 
 const actual = {
   1:"Lambda Lambda Lambda",2:"manningfaced",3:"Million $ Baby",4:"Lo Cal Calzone Zone",
@@ -99,38 +128,82 @@ const counter = {
   5:"Lo Cal Calzone Zone",6:"The Gofffather",7:"grace's Legit Team",8:"OskiMode"
 };
 
-function makeSeeds() {
-  const s = document.getElementById("seeds");
-  s.innerHTML = "";
-  for (let i=1;i<=8;i++) {
-    let box = document.createElement("div");
-    box.className = "seedbox";
-    box.dataset.seed = i;
-    box.ondragover = e => e.preventDefault();
-    box.ondrop = e => {
-      e.preventDefault();
-      box.innerHTML = `<div draggable="true">${e.dataTransfer.getData("text")}</div>`;
-      makeDraggable();
-    };
-    box.innerHTML = `Seed ${i}`;
-    s.appendChild(box);
-  }
+function makeTeams() {
+  const t = document.getElementById("teams");
+  t.innerHTML = "";
+  Object.keys(teams).forEach(name => {
+    let d = document.createElement("div");
+    d.className = "team";
+    d.textContent = name;
+    d.draggable = true;
+    d.ondragstart = e => e.dataTransfer.setData("text", name);
+    t.appendChild(d);
+  });
 }
 
-function makeDraggable() {
-  document.querySelectorAll("[draggable]").forEach(d => {
-    d.ondragstart = e => e.dataTransfer.setData("text", d.textContent);
+function makeQuarterfinals() {
+  const q = document.getElementById("qf");
+  q.innerHTML = "";
+  seedPairs.forEach(pair => {
+    let m = document.createElement("div");
+    m.className = "match";
+    pair.forEach(seed => {
+      let s = document.createElement("div");
+      s.className = "slot";
+      s.dataset.seed = seed;
+      s.ondragover = e => e.preventDefault();
+      s.ondrop = e => {
+        e.preventDefault();
+        const team = e.dataTransfer.getData("text");
+        s.innerHTML = `<strong>Seed ${seed}</strong>${team}`;
+      };
+      s.innerHTML = `<strong>Seed ${seed}</strong>`;
+      m.appendChild(s);
+    });
+    q.appendChild(m);
+  });
+}
+
+function score(a,b,w){ return teams[a][w] >= teams[b][w] ? a : b; }
+
+function simulate() {
+  let s = {};
+  document.querySelectorAll(".slot").forEach(d => {
+    const seed = d.dataset.seed;
+    const team = d.textContent.replace(`Seed ${seed}`,"").trim();
+    s[seed] = team;
+  });
+
+  const qfWinners = seedPairs.map(p => score(s[p[0]], s[p[1]], 0));
+
+  const sf = [
+    score(qfWinners[0], qfWinners[1], 1),
+    score(qfWinners[2], qfWinners[3], 1)
+  ];
+
+  const champ = score(sf[0], sf[1], 2);
+
+  drawRound("sf", sf);
+  drawRound("final", [champ]);
+}
+
+function drawRound(id, teams) {
+  const d = document.getElementById(id);
+  d.innerHTML = "";
+  teams.forEach(t => {
+    d.innerHTML += `<div class="match winner">${t}</div>`;
   });
 }
 
 function loadSeeds(obj) {
-  makeSeeds();
-  Object.entries(obj).forEach(([k,v]) => {
-    const box = document.querySelector(`[data-seed='${k}']`);
-    box.innerHTML = `<div draggable="true">${v}</div>`;
+  document.querySelectorAll(".slot").forEach(s => {
+    const seed = s.dataset.seed;
+    s.innerHTML = `<strong>Seed ${seed}</strong>${obj[seed] || ""}`;
   });
-  makeDraggable();
 }
+
+function loadActual(){ loadSeeds(actual); }
+function loadCounterfactual(){ loadSeeds(counter); }
 
 function randomSeeding() {
   const names = Object.keys(teams).sort(() => Math.random() - 0.5);
@@ -139,53 +212,8 @@ function randomSeeding() {
   loadSeeds(s);
 }
 
-function score(a,b,w) {
-  return teams[a][w] >= teams[b][w] ? a : b;
-}
-
-function simulate() {
-  let s = {};
-  document.querySelectorAll(".seedbox").forEach(b => {
-    s[b.dataset.seed] = b.textContent.replace("Seed "+b.dataset.seed,"").trim();
-  });
-
-  const qf = [];
-  for (let i=0;i<seedOrder.length;i+=2) {
-    qf.push({
-      a: s[seedOrder[i]],
-      b: s[seedOrder[i+1]],
-      w: score(s[seedOrder[i]], s[seedOrder[i+1]], 0)
-    });
-  }
-
-  const sf = [
-    { a:qf[0].w, b:qf[1].w, w:score(qf[0].w,qf[1].w,1) },
-    { a:qf[2].w, b:qf[3].w, w:score(qf[2].w,qf[3].w,1) }
-  ];
-
-  const f = score(sf[0].w, sf[1].w, 2);
-
-  draw("qf", qf);
-  draw("sf", sf);
-  draw("final", [{a:sf[0].w,b:sf[1].w,w:f}]);
-}
-
-function draw(id, games) {
-  const d = document.getElementById(id);
-  d.innerHTML = "";
-  games.forEach(g => {
-    d.innerHTML += `
-      <div class="match">
-        <div class="${g.w===g.a?'winner':''}">${g.a}</div>
-        <div class="${g.w===g.b?'winner':''}">${g.b}</div>
-      </div>`;
-  });
-}
-
-function loadActual(){ loadSeeds(actual); }
-function loadCounterfactual(){ loadSeeds(counter); }
-
-makeSeeds();
+makeTeams();
+makeQuarterfinals();
 </script>
 
 </body>
