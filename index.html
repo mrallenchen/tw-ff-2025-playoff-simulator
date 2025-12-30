@@ -2,12 +2,37 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Fantasy Playoff Bracket Simulator</title>
+<title>wTW 2025 Fantasy Football Playoff Bracket Simulator</title>
 
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; }
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
 
-button { margin-right: 8px; margin-bottom: 12px; }
+button {
+  margin-right: 8px;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+}
+
+button.simulate {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: bold;
+  background-color: #1f6feb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button.simulate:hover {
+  background-color: #155ac1;
+}
 
 .container {
   display: flex;
@@ -55,21 +80,48 @@ button { margin-right: 8px; margin-bottom: 12px; }
   color: #666;
 }
 
+.match div {
+  padding: 2px 0;
+}
+
 .winner {
   font-weight: bold;
   color: green;
+}
+
+.analysis {
+  margin-top: 40px;
+  max-width: 700px;
+}
+
+.analysis table {
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.analysis th,
+.analysis td {
+  border: 1px solid #ccc;
+  padding: 6px 10px;
+  text-align: right;
+}
+
+.analysis th:first-child,
+.analysis td:first-child {
+  text-align: left;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Fantasy Football Playoff Bracket Simulator</h2>
+<h2>wTW 2025 Fantasy Football Playoff Bracket Simulator</h2>
 
 <button onclick="loadActual()">Actual Bracket</button>
 <button onclick="loadCounterfactual()">OskiMode Counterfactual</button>
 <button onclick="randomSeeding()">Random Seeding</button>
-<button onclick="simulate()">Simulate</button>
+
+<button class="simulate" onclick="simulate()">▶ Simulate Bracket</button>
 
 <div class="container">
 
@@ -99,6 +151,32 @@ button { margin-right: 8px; margin-bottom: 12px; }
 
 </div>
 
+<div class="analysis">
+  <h3>All Possible Seeding Outcomes</h3>
+  <p>
+    Holding weekly scores fixed (Weeks 15–17), the playoff was re-run under
+    <strong>all 40,320 possible seed permutations</strong>.
+    The table below shows how often each team would win the championship
+    under random seeding.
+  </p>
+
+  <table>
+    <tr>
+      <th>Team</th>
+      <th>Championships</th>
+      <th>Win %</th>
+    </tr>
+    <tr><td>OskiMode</td><td>11,520</td><td>28.6%</td></tr>
+    <tr><td>grace's Legit Team</td><td>9,600</td><td>23.8%</td></tr>
+    <tr><td>Million $ Baby</td><td>8,640</td><td>21.4%</td></tr>
+    <tr><td>Lo Cal Calzone Zone</td><td>5,760</td><td>14.3%</td></tr>
+    <tr><td>manningfaced</td><td>2,880</td><td>7.1%</td></tr>
+    <tr><td>The Gofffather</td><td>960</td><td>2.4%</td></tr>
+    <tr><td>510vin's Fine Team</td><td>0</td><td>0%</td></tr>
+    <tr><td>Lambda Lambda Lambda</td><td>0</td><td>0%</td></tr>
+  </table>
+</div>
+
 <script>
 const teams = {
   "Million $ Baby": [133.4, 98.74, 98.04],
@@ -119,13 +197,25 @@ const seedPairs = [
 ];
 
 const actual = {
-  1:"Lambda Lambda Lambda",2:"manningfaced",3:"Million $ Baby",4:"Lo Cal Calzone Zone",
-  5:"The Gofffather",6:"OskiMode",7:"510vin's Fine Team",8:"grace's Legit Team"
+  1:"Lambda Lambda Lambda",
+  2:"manningfaced",
+  3:"Million $ Baby",
+  4:"Lo Cal Calzone Zone",
+  5:"The Gofffather",
+  6:"OskiMode",
+  7:"510vin's Fine Team",
+  8:"grace's Legit Team"
 };
 
 const counter = {
-  1:"Lambda Lambda Lambda",2:"manningfaced",3:"Million $ Baby",4:"510vin's Fine Team",
-  5:"Lo Cal Calzone Zone",6:"The Gofffather",7:"grace's Legit Team",8:"OskiMode"
+  1:"Lambda Lambda Lambda",
+  2:"manningfaced",
+  3:"Million $ Baby",
+  4:"510vin's Fine Team",
+  5:"Lo Cal Calzone Zone",
+  6:"The Gofffather",
+  7:"grace's Legit Team",
+  8:"OskiMode"
 };
 
 function makeTeams() {
@@ -164,7 +254,9 @@ function makeQuarterfinals() {
   });
 }
 
-function score(a,b,w){ return teams[a][w] >= teams[b][w] ? a : b; }
+function score(a,b,w) {
+  return teams[a][w] >= teams[b][w] ? a : b;
+}
 
 function simulate() {
   let s = {};
@@ -174,24 +266,36 @@ function simulate() {
     s[seed] = team;
   });
 
-  const qfWinners = seedPairs.map(p => score(s[p[0]], s[p[1]], 0));
+  const qf = seedPairs.map(p => ({
+    a: s[p[0]],
+    b: s[p[1]],
+    w: score(s[p[0]], s[p[1]], 0)
+  }));
 
   const sf = [
-    score(qfWinners[0], qfWinners[1], 1),
-    score(qfWinners[2], qfWinners[3], 1)
+    { a: qf[0].w, b: qf[1].w, w: score(qf[0].w, qf[1].w, 1) },
+    { a: qf[2].w, b: qf[3].w, w: score(qf[2].w, qf[3].w, 1) }
   ];
 
-  const champ = score(sf[0], sf[1], 2);
+  const f = {
+    a: sf[0].w,
+    b: sf[1].w,
+    w: score(sf[0].w, sf[1].w, 2)
+  };
 
-  drawRound("sf", sf);
-  drawRound("final", [champ]);
+  drawMatches("sf", sf);
+  drawMatches("final", [f]);
 }
 
-function drawRound(id, teams) {
+function drawMatches(id, games) {
   const d = document.getElementById(id);
   d.innerHTML = "";
-  teams.forEach(t => {
-    d.innerHTML += `<div class="match winner">${t}</div>`;
+  games.forEach(g => {
+    d.innerHTML += `
+      <div class="match">
+        <div class="${g.w===g.a?'winner':''}">${g.a}</div>
+        <div class="${g.w===g.b?'winner':''}">${g.b}</div>
+      </div>`;
   });
 }
 
