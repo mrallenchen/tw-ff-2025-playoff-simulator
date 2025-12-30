@@ -2,56 +2,78 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Fantasy Playoff Simulator</title>
+<title>Fantasy Playoff Bracket Simulator</title>
 
 <style>
-body { font-family: Arial; padding: 20px; }
-h2 { margin-top: 0; }
+body { font-family: Arial, sans-serif; padding: 20px; }
 
-.container { display: flex; gap: 40px; }
+button { margin-right: 8px; margin-bottom: 10px; }
 
-.seed, .team {
+.bracket {
+  display: grid;
+  grid-template-columns: 220px 220px 220px;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.round h3 { text-align: center; }
+
+.match {
+  border: 1px solid #ccc;
   padding: 6px;
-  border: 1px solid #aaa;
-  margin-bottom: 4px;
-  background: #f9f9f9;
+  margin-bottom: 14px;
+}
+
+.team {
+  padding: 4px;
   cursor: grab;
 }
 
-.seed {
-  width: 220px;
-  min-height: 24px;
+.winner {
+  font-weight: bold;
+  color: green;
 }
 
-.round { margin-top: 20px; }
-.winner { font-weight: bold; color: green; }
+.seedbox {
+  border: 1px dashed #aaa;
+  padding: 6px;
+  margin-bottom: 6px;
+}
 
-canvas { margin-top: 20px; }
-button { margin-right: 10px; margin-top: 10px; }
+.seedbox div {
+  cursor: grab;
+}
 </style>
 </head>
 
 <body>
 
-<h2>Fantasy Football Playoff Simulator</h2>
+<h2>Fantasy Football Playoff Bracket Simulator</h2>
 
-<div class="container">
-  <div>
-    <h3>Teams (drag into seeds)</h3>
-    <div id="teams"></div>
+<button onclick="loadActual()">Actual Bracket</button>
+<button onclick="loadCounterfactual()">OskiMode Counterfactual</button>
+<button onclick="randomSeeding()">Random Seeding</button>
+<button onclick="simulate()">Simulate</button>
+
+<h3>Seeds (drag teams between seeds)</h3>
+<div id="seeds"></div>
+
+<div class="bracket">
+  <div class="round">
+    <h3>Quarterfinals</h3>
+    <div id="qf"></div>
   </div>
 
-  <div>
-    <h3>Seeds</h3>
-    <div id="seeds"></div>
+  <div class="round">
+    <h3>Semifinals</h3>
+    <div id="sf"></div>
+  </div>
+
+  <div class="round">
+    <h3>Final</h3>
+    <div id="final"></div>
   </div>
 </div>
-
-<button onclick="simulate()">Simulate Bracket</button>
-<button onclick="monteCarlo()">Monte Carlo (10,000)</button>
-
-<div id="results"></div>
-<canvas id="chart" width="600" height="300"></canvas>
 
 <script>
 const teams = {
@@ -67,90 +89,103 @@ const teams = {
 
 const seedOrder = [1,8,4,5,3,6,2,7];
 
-function createUI() {
-  const teamDiv = document.getElementById("teams");
-  const seedDiv = document.getElementById("seeds");
+const actual = {
+  1:"Lambda Lambda Lambda",2:"manningfaced",3:"Million $ Baby",4:"Lo Cal Calzone Zone",
+  5:"The Gofffather",6:"OskiMode",7:"510vin's Fine Team",8:"grace's Legit Team"
+};
 
-  Object.keys(teams).forEach(t => {
-    let d = document.createElement("div");
-    d.className = "team";
-    d.textContent = t;
-    d.draggable = true;
-    d.ondragstart = e => e.dataTransfer.setData("text", t);
-    teamDiv.appendChild(d);
-  });
+const counter = {
+  1:"Lambda Lambda Lambda",2:"manningfaced",3:"Million $ Baby",4:"510vin's Fine Team",
+  5:"Lo Cal Calzone Zone",6:"The Gofffather",7:"grace's Legit Team",8:"OskiMode"
+};
 
-  for (let i = 1; i <= 8; i++) {
-    let d = document.createElement("div");
-    d.className = "seed";
-    d.textContent = `Seed ${i}`;
-    d.dataset.seed = i;
-    d.ondragover = e => e.preventDefault();
-    d.ondrop = e => {
+function makeSeeds() {
+  const s = document.getElementById("seeds");
+  s.innerHTML = "";
+  for (let i=1;i<=8;i++) {
+    let box = document.createElement("div");
+    box.className = "seedbox";
+    box.dataset.seed = i;
+    box.ondragover = e => e.preventDefault();
+    box.ondrop = e => {
       e.preventDefault();
-      d.textContent = e.dataTransfer.getData("text");
+      box.innerHTML = `<div draggable="true">${e.dataTransfer.getData("text")}</div>`;
+      makeDraggable();
     };
-    seedDiv.appendChild(d);
+    box.innerHTML = `Seed ${i}`;
+    s.appendChild(box);
   }
 }
 
-function winner(t1, t2, week) {
-  return teams[t1][week] >= teams[t2][week] ? t1 : t2;
+function makeDraggable() {
+  document.querySelectorAll("[draggable]").forEach(d => {
+    d.ondragstart = e => e.dataTransfer.setData("text", d.textContent);
+  });
 }
 
-function runBracket(seeding) {
-  let q = [];
-  for (let i = 0; i < seedOrder.length; i += 2) {
-    q.push(winner(seeding[seedOrder[i]], seeding[seedOrder[i+1]], 0));
-  }
-  let f1 = winner(q[0], q[1], 1);
-  let f2 = winner(q[2], q[3], 1);
-  return winner(f1, f2, 2);
+function loadSeeds(obj) {
+  makeSeeds();
+  Object.entries(obj).forEach(([k,v]) => {
+    const box = document.querySelector(`[data-seed='${k}']`);
+    box.innerHTML = `<div draggable="true">${v}</div>`;
+  });
+  makeDraggable();
+}
+
+function randomSeeding() {
+  const names = Object.keys(teams).sort(() => Math.random() - 0.5);
+  let s = {};
+  names.forEach((t,i)=>s[i+1]=t);
+  loadSeeds(s);
+}
+
+function score(a,b,w) {
+  return teams[a][w] >= teams[b][w] ? a : b;
 }
 
 function simulate() {
   let s = {};
-  document.querySelectorAll(".seed").forEach(d => {
-    s[d.dataset.seed] = d.textContent;
+  document.querySelectorAll(".seedbox").forEach(b => {
+    s[b.dataset.seed] = b.textContent.replace("Seed "+b.dataset.seed,"").trim();
   });
-  let champ = runBracket(s);
-  document.getElementById("results").innerHTML =
-    `<div class="winner">🏆 Champion: ${champ}</div>`;
-}
 
-function monteCarlo() {
-  const counts = {};
-  Object.keys(teams).forEach(t => counts[t] = 0);
-
-  const names = Object.keys(teams);
-  const N = 10000;
-
-  for (let i = 0; i < N; i++) {
-    let shuffled = names.slice().sort(() => Math.random() - 0.5);
-    let s = {};
-    shuffled.forEach((t, idx) => s[idx + 1] = t);
-    counts[runBracket(s)]++;
+  const qf = [];
+  for (let i=0;i<seedOrder.length;i+=2) {
+    qf.push({
+      a: s[seedOrder[i]],
+      b: s[seedOrder[i+1]],
+      w: score(s[seedOrder[i]], s[seedOrder[i+1]], 0)
+    });
   }
 
-  drawChart(counts, N);
+  const sf = [
+    { a:qf[0].w, b:qf[1].w, w:score(qf[0].w,qf[1].w,1) },
+    { a:qf[2].w, b:qf[3].w, w:score(qf[2].w,qf[3].w,1) }
+  ];
+
+  const f = score(sf[0].w, sf[1].w, 2);
+
+  draw("qf", qf);
+  draw("sf", sf);
+  draw("final", [{a:sf[0].w,b:sf[1].w,w:f}]);
 }
 
-function drawChart(counts, total) {
-  const ctx = document.getElementById("chart").getContext("2d");
-  ctx.clearRect(0,0,600,300);
-
-  const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
-  const barWidth = 600 / entries.length;
-
-  entries.forEach((e, i) => {
-    let h = (e[1] / total) * 250;
-    ctx.fillRect(i * barWidth, 300 - h, barWidth - 4, h);
-    ctx.fillText(e[0], i * barWidth + 2, 290);
-    ctx.fillText(((e[1]/total)*100).toFixed(1)+"%", i*barWidth+2, 300-h-4);
+function draw(id, games) {
+  const d = document.getElementById(id);
+  d.innerHTML = "";
+  games.forEach(g => {
+    d.innerHTML += `
+      <div class="match">
+        <div class="${g.w===g.a?'winner':''}">${g.a}</div>
+        <div class="${g.w===g.b?'winner':''}">${g.b}</div>
+      </div>`;
   });
 }
 
-createUI();
+function loadActual(){ loadSeeds(actual); }
+function loadCounterfactual(){ loadSeeds(counter); }
+
+makeSeeds();
 </script>
 
 </body>
