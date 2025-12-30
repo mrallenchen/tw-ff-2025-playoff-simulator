@@ -71,7 +71,7 @@ button.simulate:hover {
   border: 1px dashed #aaa;
   padding: 6px;
   margin-bottom: 6px;
-  min-height: 22px;
+  min-height: 40px;
 }
 
 .slot strong {
@@ -245,7 +245,8 @@ function makeQuarterfinals() {
       s.ondrop = e => {
         e.preventDefault();
         const team = e.dataTransfer.getData("text");
-        s.innerHTML = `<strong>Seed ${seed}</strong>${team}`;
+        const score = teams[team][0];
+        s.innerHTML = `<strong>Seed ${seed}</strong>${team} (${score})`;
       };
       s.innerHTML = `<strong>Seed ${seed}</strong>`;
       m.appendChild(s);
@@ -254,64 +255,80 @@ function makeQuarterfinals() {
   });
 }
 
-function score(a,b,w) {
-  return teams[a][w] >= teams[b][w] ? a : b;
-}
+function score(a,b,w){ return teams[a][w] >= teams[b][w] ? a : b; }
 
 function simulate() {
   let s = {};
   document.querySelectorAll(".slot").forEach(d => {
     const seed = d.dataset.seed;
-    const team = d.textContent.replace(`Seed ${seed}`,"").trim();
+    const team = d.textContent.replace(/Seed \d+/, "").replace(/\(\d+(\.\d+)?\)/, "").trim();
     s[seed] = team;
   });
 
   const qf = seedPairs.map(p => ({
     a: s[p[0]],
     b: s[p[1]],
+    aScore: teams[s[p[0]]][0],
+    bScore: teams[s[p[1]]][0],
     w: score(s[p[0]], s[p[1]], 0)
   }));
 
   const sf = [
-    { a: qf[0].w, b: qf[1].w, w: score(qf[0].w, qf[1].w, 1) },
-    { a: qf[2].w, b: qf[3].w, w: score(qf[2].w, qf[3].w, 1) }
+    {
+      a: qf[0].w,
+      b: qf[1].w,
+      aScore: teams[qf[0].w][1],
+      bScore: teams[qf[1].w][1],
+      w: score(qf[0].w,qf[1].w,1)
+    },
+    {
+      a: qf[2].w,
+      b: qf[3].w,
+      aScore: teams[qf[2].w][1],
+      bScore: teams[qf[3].w][1],
+      w: score(qf[2].w,qf[3].w,1)
+    }
   ];
 
   const f = {
     a: sf[0].w,
     b: sf[1].w,
-    w: score(sf[0].w, sf[1].w, 2)
+    aScore: teams[sf[0].w][2],
+    bScore: teams[sf[1].w][2],
+    w: score(sf[0].w, sf[1].w,2)
   };
 
   drawMatches("sf", sf);
   drawMatches("final", [f]);
 }
 
-function drawMatches(id, games) {
+function drawMatches(id, games){
   const d = document.getElementById(id);
   d.innerHTML = "";
-  games.forEach(g => {
+  games.forEach(g=>{
     d.innerHTML += `
       <div class="match">
-        <div class="${g.w===g.a?'winner':''}">${g.a}</div>
-        <div class="${g.w===g.b?'winner':''}">${g.b}</div>
+        <div class="${g.w===g.a?'winner':''}">${g.a} (${g.aScore})</div>
+        <div class="${g.w===g.b?'winner':''}">${g.b} (${g.bScore})</div>
       </div>`;
   });
 }
 
 function loadSeeds(obj) {
-  document.querySelectorAll(".slot").forEach(s => {
+  document.querySelectorAll(".slot").forEach(s=>{
     const seed = s.dataset.seed;
-    s.innerHTML = `<strong>Seed ${seed}</strong>${obj[seed] || ""}`;
+    const team = obj[seed];
+    const score = team ? teams[team][0] : "";
+    s.innerHTML = `<strong>Seed ${seed}</strong>${team ? team + " ("+score+")":""}`;
   });
 }
 
 function loadActual(){ loadSeeds(actual); }
 function loadCounterfactual(){ loadSeeds(counter); }
 
-function randomSeeding() {
-  const names = Object.keys(teams).sort(() => Math.random() - 0.5);
-  let s = {};
+function randomSeeding(){
+  const names = Object.keys(teams).sort(()=>Math.random()-0.5);
+  let s={};
   names.forEach((t,i)=>s[i+1]=t);
   loadSeeds(s);
 }
