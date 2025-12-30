@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Fantasy Playoff Simulator</title>
+
+<style>
+body { font-family: Arial; padding: 20px; }
+h2 { margin-top: 0; }
+
+.container { display: flex; gap: 40px; }
+
+.seed, .team {
+  padding: 6px;
+  border: 1px solid #aaa;
+  margin-bottom: 4px;
+  background: #f9f9f9;
+  cursor: grab;
+}
+
+.seed {
+  width: 220px;
+  min-height: 24px;
+}
+
+.round { margin-top: 20px; }
+.winner { font-weight: bold; color: green; }
+
+canvas { margin-top: 20px; }
+button { margin-right: 10px; margin-top: 10px; }
+</style>
+</head>
+
+<body>
+
+<h2>Fantasy Football Playoff Simulator</h2>
+
+<div class="container">
+  <div>
+    <h3>Teams (drag into seeds)</h3>
+    <div id="teams"></div>
+  </div>
+
+  <div>
+    <h3>Seeds</h3>
+    <div id="seeds"></div>
+  </div>
+</div>
+
+<button onclick="simulate()">Simulate Bracket</button>
+<button onclick="monteCarlo()">Monte Carlo (10,000)</button>
+
+<div id="results"></div>
+<canvas id="chart" width="600" height="300"></canvas>
+
+<script>
+const teams = {
+  "Million $ Baby": [133.4, 98.74, 98.04],
+  "grace's Legit Team": [133.84, 145.72, 88.28],
+  "Lo Cal Calzone Zone": [147.52, 73.8, 143.38],
+  "510vin's Fine Team": [78.24, 87.48, 84.62],
+  "OskiMode": [109.4, 128.5, 135.52],
+  "The Gofffather": [107.4, 124.26, 73.98],
+  "manningfaced": [71.74, 123.12, 142.08],
+  "Lambda Lambda Lambda": [97.4, 71.4, 59.2]
+};
+
+const seedOrder = [1,8,4,5,3,6,2,7];
+
+function createUI() {
+  const teamDiv = document.getElementById("teams");
+  const seedDiv = document.getElementById("seeds");
+
+  Object.keys(teams).forEach(t => {
+    let d = document.createElement("div");
+    d.className = "team";
+    d.textContent = t;
+    d.draggable = true;
+    d.ondragstart = e => e.dataTransfer.setData("text", t);
+    teamDiv.appendChild(d);
+  });
+
+  for (let i = 1; i <= 8; i++) {
+    let d = document.createElement("div");
+    d.className = "seed";
+    d.textContent = `Seed ${i}`;
+    d.dataset.seed = i;
+    d.ondragover = e => e.preventDefault();
+    d.ondrop = e => {
+      e.preventDefault();
+      d.textContent = e.dataTransfer.getData("text");
+    };
+    seedDiv.appendChild(d);
+  }
+}
+
+function winner(t1, t2, week) {
+  return teams[t1][week] >= teams[t2][week] ? t1 : t2;
+}
+
+function runBracket(seeding) {
+  let q = [];
+  for (let i = 0; i < seedOrder.length; i += 2) {
+    q.push(winner(seeding[seedOrder[i]], seeding[seedOrder[i+1]], 0));
+  }
+  let f1 = winner(q[0], q[1], 1);
+  let f2 = winner(q[2], q[3], 1);
+  return winner(f1, f2, 2);
+}
+
+function simulate() {
+  let s = {};
+  document.querySelectorAll(".seed").forEach(d => {
+    s[d.dataset.seed] = d.textContent;
+  });
+  let champ = runBracket(s);
+  document.getElementById("results").innerHTML =
+    `<div class="winner">🏆 Champion: ${champ}</div>`;
+}
+
+function monteCarlo() {
+  const counts = {};
+  Object.keys(teams).forEach(t => counts[t] = 0);
+
+  const names = Object.keys(teams);
+  const N = 10000;
+
+  for (let i = 0; i < N; i++) {
+    let shuffled = names.slice().sort(() => Math.random() - 0.5);
+    let s = {};
+    shuffled.forEach((t, idx) => s[idx + 1] = t);
+    counts[runBracket(s)]++;
+  }
+
+  drawChart(counts, N);
+}
+
+function drawChart(counts, total) {
+  const ctx = document.getElementById("chart").getContext("2d");
+  ctx.clearRect(0,0,600,300);
+
+  const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const barWidth = 600 / entries.length;
+
+  entries.forEach((e, i) => {
+    let h = (e[1] / total) * 250;
+    ctx.fillRect(i * barWidth, 300 - h, barWidth - 4, h);
+    ctx.fillText(e[0], i * barWidth + 2, 290);
+    ctx.fillText(((e[1]/total)*100).toFixed(1)+"%", i*barWidth+2, 300-h-4);
+  });
+}
+
+createUI();
+</script>
+
+</body>
+</html>
